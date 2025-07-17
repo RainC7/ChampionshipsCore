@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class GameManager extends BaseManager {
     private final Map<UUID, BaseArea> playerSpectatorStatus = new ConcurrentHashMap<>();
+    private final Map<UUID, ChampionshipTeam> playerSpectatingTeam = new ConcurrentHashMap<>();
     private final Map<ChampionshipTeam, BaseArea> teamStatus = new ConcurrentHashMap<>();
     private final Map<UUID, BaseArea> playerStatus = new ConcurrentHashMap<>();
     private final GameManagerHandler gameManagerHandler;
@@ -304,6 +305,16 @@ public class GameManager extends BaseManager {
         for (UUID uuid : championshipTeam.getMembers()) {
             playerStatus.put(uuid, baseArea);
         }
+
+        for (Map.Entry<UUID, ChampionshipTeam> entry : playerSpectatingTeam.entrySet()) {
+            if (entry.getValue().equals(championshipTeam)) {
+                Player player = Bukkit.getPlayer(entry.getKey());
+                if (player != null) {
+                    spectateArea(player, baseArea);
+                    player.sendMessage("The team you are spectating has started a new game. You have been automatically moved to the new area.");
+                }
+            }
+        }
     }
 
     public void removePlayerStatusByTeam(ChampionshipTeam championshipTeam) {
@@ -317,12 +328,32 @@ public class GameManager extends BaseManager {
         teamStatus.remove(event.getRightChampionshipTeam());
         removePlayerStatusByTeam(event.getLeftChampionshipTeam());
         removePlayerStatusByTeam(event.getRightChampionshipTeam());
+
+        for (Map.Entry<UUID, ChampionshipTeam> entry : playerSpectatingTeam.entrySet()) {
+            if (entry.getValue().equals(event.getLeftChampionshipTeam()) || entry.getValue().equals(event.getRightChampionshipTeam())) {
+                Player player = Bukkit.getPlayer(entry.getKey());
+                if (player != null) {
+                    leaveSpectating(player);
+                    player.sendMessage("The team you were spectating has finished the game. You have been returned to the lobby.");
+                }
+            }
+        }
     }
 
     public void singleTeamGameEndHandler(SingleGameEndEvent event) {
         for (ChampionshipTeam championshipTeam : event.getChampionshipTeams()) {
             teamStatus.remove(championshipTeam);
             removePlayerStatusByTeam(championshipTeam);
+
+            for (Map.Entry<UUID, ChampionshipTeam> entry : playerSpectatingTeam.entrySet()) {
+                if (entry.getValue().equals(championshipTeam)) {
+                    Player player = Bukkit.getPlayer(entry.getKey());
+                    if (player != null) {
+                        leaveSpectating(player);
+                        player.sendMessage("The team you were spectating has finished the game. You have been returned to the lobby.");
+                    }
+                }
+            }
         }
     }
 
@@ -379,5 +410,37 @@ public class GameManager extends BaseManager {
             baseArea.onlyRemoveSpectatorFromList(uuid);
             playerSpectatorStatus.remove(uuid);
         }
+    }
+
+    public synchronized boolean spectateTeam(@NotNull Player player, @NotNull ChampionshipTeam team) {
+        UUID uuid = player.getUniqueId();
+        if (playerSpectatingTeam.containsKey(uuid)) {
+            return false;
+        }
+        if (playerStatus.containsKey(uuid)) {
+            return false;
+        }
+
+        BaseArea area = getTeamCurrenArea(team);
+        if (area == null) {
+            return false;
+        }
+
+        if (spectateArea(player, area)) {
+            playerSpectatingTeam.put(uuid, team);
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean leaveSpectatingTeam(@NotNull Player player) {
+        UUID uuid = player.getUniqueId();
+        if (playerSpectatingTeam.containsKey(uuid)) {
+            playerSpectatingTeam.remove(uuid);
+            return leaveSpectating(player);
+        }
+
+        return false;
     }
 }

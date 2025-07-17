@@ -18,8 +18,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class SpectateSubCommand extends BaseSubCommand {
-    private final String[] games = {
+    private final String[] actions = {
             "leave",
+            "team",
             "battlebox",
             "parkourtag",
             "skywars",
@@ -56,6 +57,20 @@ public class SpectateSubCommand extends BaseSubCommand {
             }
         }
         if (args.length == 2) {
+            if (args[0].equals("team")) {
+                ChampionshipTeam championshipTeam = plugin.getTeamManager().getTeam(args[1]);
+                if (championshipTeam != null) {
+                    if (plugin.getGameManager().spectateTeam((Player) sender, championshipTeam)) {
+                        sender.sendMessage("You are now spectating team " + championshipTeam.getName());
+                    } else {
+                        sender.sendMessage("Failed to spectate team.");
+                    }
+                } else {
+                    sender.sendMessage("Team not found.");
+                }
+                return true;
+            }
+
             GameTypeEnum gameTypeEnum = null;
             BaseArea baseArea = null;
             if (args[0].equals("battlebox")) {
@@ -131,11 +146,16 @@ public class SpectateSubCommand extends BaseSubCommand {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 1) {
-            List<String> returnList = new ArrayList<>(Arrays.asList(games));
+            List<String> returnList = new ArrayList<>(Arrays.asList(actions));
             returnList.removeIf(s -> s != null && !s.startsWith(args[0]));
             return returnList;
         }
         if (args.length == 2) {
+            if (args[0].equals("team")) {
+                List<String> returnList = plugin.getTeamManager().getTeamNameList();
+                returnList.removeIf(s -> s != null && !s.startsWith(args[1]));
+                return returnList;
+            }
             if (args[0].equals("battlebox")) {
                 List<String> returnList = plugin.getGameManager().getBattleBoxManager().getAreaNameList();
                 returnList.removeIf(s -> s != null && !s.startsWith(args[1]));

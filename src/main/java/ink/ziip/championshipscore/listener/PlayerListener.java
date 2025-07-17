@@ -42,6 +42,8 @@ public class PlayerListener extends BaseListener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        plugin.getGameManager().leaveSpectating(player);
+        plugin.getGameManager().leaveSpectatingTeam(player);
         PlayerManager playerManager = ChampionshipsCore.getInstance().getPlayerManager();
         playerManager.getPlayer(player).updatePlayer();
     }
